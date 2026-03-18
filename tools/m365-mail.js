@@ -11,7 +11,9 @@ async function main() {
   for (const key of required) {
     if (!args[key]) throw new Error(`Missing --${key}`);
   }
+
   const top = Number(args.top || 10);
+  const folders = String(args.folders || 'inbox').split(',').map(s => s.trim()).filter(Boolean);
   const secretFile = fs.readFileSync(args.secretPath, 'utf8');
   const secretMatch = secretFile.match(/(?:^|\n)\s*value\s*\r?\n\s*([^\r\n]+)\s*(?:\r?\n|$)/i);
   const secret = (secretMatch ? secretMatch[1] : secretFile.trim());
@@ -32,27 +34,31 @@ async function main() {
   const token = JSON.parse(tokenText).access_token;
   if (!token) throw new Error('No access_token in token response');
 
-  const msgUrl = new URL(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(args.mailbox)}/mailFolders/inbox/messages`);
-  msgUrl.searchParams.set('$top', String(top));
-  msgUrl.searchParams.set('$select', 'receivedDateTime,from,subject,bodyPreview,isRead,webLink');
-  msgUrl.searchParams.set('$orderby', 'receivedDateTime desc');
+  for (const folder of folders) {
+    const msgUrl = new URL(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(args.mailbox)}/mailFolders/${encodeURIComponent(folder)}/messages`);
+    msgUrl.searchParams.set('$top', String(top));
+    msgUrl.searchParams.set('$select', 'receivedDateTime,from,toRecipients,subject,bodyPreview,isRead,webLink');
+    msgUrl.searchParams.set('$orderby', 'receivedDateTime desc');
 
-  const msgRes = await fetch(msgUrl, {
-    headers: { authorization: `Bearer ${token}` }
-  });
-  const msgText = await msgRes.text();
-  if (!msgRes.ok) throw new Error(`Graph request failed: ${msgRes.status} ${msgText}`);
-  const data = JSON.parse(msgText);
+    const msgRes = await fetch(msgUrl, {
+      headers: { authorization: `Bearer ${token}` }
+    });
+    const msgText = await msgRes.text();
+    if (!msgRes.ok) throw new Error(`Graph request failed for folder ${folder}: ${msgRes.status} ${msgText}`);
+    const data = JSON.parse(msgText);
 
-  for (const m of data.value || []) {
-    console.log(JSON.stringify({
-      received: m.receivedDateTime,
-      from: m.from?.emailAddress?.address || '',
-      subject: m.subject || '',
-      isRead: !!m.isRead,
-      preview: m.bodyPreview || '',
-      webLink: m.webLink || ''
-    }));
+    for (const m of data.value || []) {
+      console.log(JSON.stringify({
+        folder,
+        received: m.receivedDateTime,
+        from: m.from?.emailAddress?.address || '',
+        to: (m.toRecipients || []).map(r => r?.emailAddress?.address).filter(Boolean),
+        subject: m.subject || '',
+        isRead: !!m.isRead,
+        preview: m.bodyPreview || '',
+        webLink: m.webLink || ''
+      }));
+    }
   }
 }
 
