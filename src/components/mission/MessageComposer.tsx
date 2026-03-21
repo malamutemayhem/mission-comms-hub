@@ -118,6 +118,15 @@ export function MessageComposer({ channel }: Props) {
           Ping Bailey
         </button>
         <button
+          onClick={() => handleSummonClaude()}
+          disabled={sending}
+          className="flex items-center gap-1 px-3 py-2.5 rounded-lg bg-[hsl(var(--sender-claude))] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 active:scale-95"
+          title="Summon Claude to respond"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Summon Claude
+        </button>
+        <button
           onClick={() => handleSend()}
           disabled={!content.trim() || sending}
           className="p-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 active:scale-95"
