@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Send, AtSign } from "lucide-react";
+import { Send, AtSign, Sparkles } from "lucide-react";
 import { sendMessage, type Channel } from "@/lib/messages";
 import { cn } from "@/lib/utils";
 
