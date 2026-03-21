@@ -51,6 +51,34 @@ export function MessageComposer({ channel }: Props) {
     }
   }, [content, channel, sending, mentionBailey, mentionClaude]);
 
+  const handleSummonClaude = useCallback(async () => {
+    if (sending) return;
+    const body = content.trim();
+    const full = body
+      ? `${body}\n\n**Requested response:** Chime in.`
+      : `**Requested response:** Chime in.`;
+
+    setSending(true);
+    try {
+      await sendMessage({
+        sender: "Chris",
+        sender_type: "human",
+        content: full,
+        channel,
+        mentions: ["Claude"],
+        requires_attention: false,
+      });
+      setContent("");
+      setMentionBailey(false);
+      setMentionClaude(false);
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+    } catch (err) {
+      console.error("Failed to summon Claude:", err);
+    } finally {
+      setSending(false);
+    }
+  }, [content, channel, sending]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
