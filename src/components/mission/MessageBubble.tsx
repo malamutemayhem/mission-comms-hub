@@ -66,14 +66,14 @@ export function MessageBubble({ message }: { message: Message }) {
   return (
     <div
       className={cn(
-        "flex gap-2 my-1.5 group",
-        isHuman ? "justify-end" : "justify-start"
+        "flex gap-2.5 my-2 group",
+        isRight ? "justify-end" : "justify-start"
       )}
     >
-      {!isHuman && (
+      {!isRight && (
         <div
           className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 mt-1",
+            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-5",
             config.color
           )}
         >
@@ -82,12 +82,10 @@ export function MessageBubble({ message }: { message: Message }) {
       )}
 
       <div className={cn("max-w-[75%] min-w-[120px]")}>
-        <div className="flex items-baseline gap-2 mb-0.5">
-          {!isHuman && (
-            <span className="text-xs font-semibold" style={{ color: `hsl(var(--sender-${message.sender_type}))` }}>
-              {message.sender}
-            </span>
-          )}
+        <div className={cn("flex items-baseline gap-2 mb-0.5", isRight && "justify-end")}>
+          <span className="text-xs font-bold" style={{ color: `hsl(var(--sender-${message.sender_type}))` }}>
+            {message.sender}
+          </span>
           <span className="text-[10px] text-muted-foreground" title={melbourneTime(message.created_at)}>
             {relativeTime(message.created_at)}
           </span>
@@ -95,10 +93,10 @@ export function MessageBubble({ message }: { message: Message }) {
 
         <div
           className={cn(
-            "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed relative",
-            isHuman
-              ? "bg-[hsl(var(--sender-human))] text-white rounded-br-sm"
-              : "bg-secondary text-secondary-foreground rounded-bl-sm",
+            "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed relative",
+            config.bubbleBg,
+            config.bubbleText,
+            isRight ? "rounded-br-sm" : "rounded-bl-sm",
             message.requires_attention && "ring-1 ring-[hsl(var(--sender-bailey))]/50"
           )}
         >
