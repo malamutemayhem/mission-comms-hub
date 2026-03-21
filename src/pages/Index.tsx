@@ -1,16 +1,143 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+/**
+ * Mission Comms - Shared Multi-Agent Communication Hub
+ *
+ * Bailey REST endpoint for sending messages:
+ * POST {VITE_SUPABASE_URL}/rest/v1/messages
+ * Headers:
+ *   apikey: {VITE_SUPABASE_PUBLISHABLE_KEY}
+ *   Authorization: Bearer {VITE_SUPABASE_PUBLISHABLE_KEY}
+ *   Content-Type: application/json
+ *   Prefer: return=minimal
+ * Body:
+ *   {"sender":"Bailey","sender_type":"bailey","content":"your message","channel":"general"}
+ *
+ * Chris uses this UI.
+ * Claude can use the same table via app/API later.
+ */
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  fetchMessages,
+  subscribeToChannel,
+  unsubscribe,
+  getUnreadCounts,
+  type Message,
+  type Channel,
+  CHANNELS,
+} from "@/lib/messages";
+import { TopBar } from "@/components/mission/TopBar";
+import { ChannelTabs } from "@/components/mission/ChannelTabs";
+import { SenderFilter } from "@/components/mission/SenderFilter";
+import { MessageBubble } from "@/components/mission/MessageBubble";
+import { MessageComposer } from "@/components/mission/MessageComposer";
+import { MessageSquare } from "lucide-react";
+
+export default function MissionComms() {
+  const [channel, setChannel] = useState<Channel>("general");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [senderFilter, setSenderFilter] = useState("all");
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [connected, setConnected] = useState(false);
+  const [hasNew, setHasNew] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const feedRef = useRef<HTMLDivElement>(null);
+  const isNearBottom = useRef(true);
+
+  const scrollToBottom = useCallback(() => {
+    const el = feedRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  const checkNearBottom = useCallback(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    isNearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (isNearBottom.current) setHasNew(false);
+  }, []);
+
+  // Load messages
+  useEffect(() => {
+    setLoading(true);
+    fetchMessages(channel)
+      .then((msgs) => {
+        setMessages(msgs);
+        setLoading(false);
+        setTimeout(scrollToBottom, 50);
+      })
+      .catch(() => setLoading(false));
+  }, [channel, scrollToBottom]);
+
+  // Realtime subscription
+  useEffect(() => {
+    setConnected(false);
+    const sub = subscribeToChannel(channel, (newMsg) => {
+      setMessages((prev) => [...prev, newMsg]);
+      if (isNearBottom.current) {
+        setTimeout(scrollToBottom, 50);
+      } else {
+        setHasNew(true);
+      }
+    });
+
+    // Check connection status
+    const timer = setTimeout(() => setConnected(true), 1000);
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe(sub);
+    };
+  }, [channel, scrollToBottom]);
+
+  // Unread counts
+  useEffect(() => {
+    getUnreadCounts().then(setUnreadCounts);
+    const interval = setInterval(() => getUnreadCounts().then(setUnreadCounts), 15000);
+    return () => clearInterval(interval);
+  }, [messages]);
+
+  const filtered = senderFilter === "all"
+    ? messages
+    : messages.filter((m) => m.sender_type === senderFilter);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="h-screen flex flex-col bg-background">
+      <TopBar connected={connected} totalMessages={messages.length} />
+      <ChannelTabs active={channel} onChange={setChannel} unreadCounts={unreadCounts} />
+      <SenderFilter active={senderFilter} onChange={setSenderFilter} />
+
+      {/* Message Feed */}
+      <div
+        ref={feedRef}
+        onScroll={checkNearBottom}
+        className="flex-1 overflow-y-auto px-4 py-3 relative"
+      >
+        {loading ? (
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+            Loading...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+            <MessageSquare className="w-10 h-10 opacity-30" />
+            <p className="text-sm">No messages in #{channel} yet</p>
+            <p className="text-xs opacity-60">Send the first message or wait for incoming comms</p>
+          </div>
+        ) : (
+          filtered.map((msg) => <MessageBubble key={msg.id} message={msg} />)
+        )}
+
+        {/* New message indicator */}
+        {hasNew && (
+          <button
+            onClick={() => { scrollToBottom(); setHasNew(false); }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:opacity-90 active:scale-95 transition-all animate-in fade-in slide-in-from-bottom-2 z-10"
+          >
+            ↓ New messages
+          </button>
+        )}
+      </div>
+
+      <MessageComposer channel={channel} />
     </div>
   );
-};
-
-const Index = PlaceholderIndex;
-
-export default Index;
+}

@@ -1,0 +1,148 @@
+import { useState } from "react";
+import { Copy, Check, ChevronDown } from "lucide-react";
+import type { Message } from "@/lib/messages";
+import { cn } from "@/lib/utils";
+
+function relativeTime(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+}
+
+function melbourneTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString("en-AU", {
+    timeZone: "Australia/Melbourne",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const senderConfig: Record<string, { align: string; color: string; avatar: string | null }> = {
+  human: { align: "right", color: "bg-[hsl(var(--sender-human))]", avatar: null },
+  claude: { align: "left", color: "bg-[hsl(var(--sender-claude))]", avatar: "C" },
+  bailey: { align: "left", color: "bg-[hsl(var(--sender-bailey))]", avatar: "B" },
+  system: { align: "center", color: "bg-[hsl(var(--sender-system))]", avatar: null },
+};
+
+export function MessageBubble({ message }: { message: Message }) {
+  const [copied, setCopied] = useState(false);
+  const [showMeta, setShowMeta] = useState(false);
+  const config = senderConfig[message.sender_type] ?? senderConfig.system;
+  const isSystem = message.sender_type === "system";
+  const isHuman = message.sender_type === "human";
+  const hasMeta = message.metadata && Object.keys(message.metadata as object).length > 0;
+
+  const copyContent = () => {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const copyMetadata = () => {
+    navigator.clipboard.writeText(JSON.stringify(message.metadata, null, 2));
+  };
+
+  if (isSystem) {
+    return (
+      <div className="flex justify-center my-2 group">
+        <div className="max-w-lg px-4 py-2 rounded-lg bg-muted/50 text-muted-foreground text-sm italic text-center">
+          <span className="font-medium mr-2">{message.sender}</span>
+          {message.content}
+          <span className="ml-2 text-xs opacity-60">{relativeTime(message.created_at)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex gap-2 my-1.5 group",
+        isHuman ? "justify-end" : "justify-start"
+      )}
+    >
+      {!isHuman && (
+        <div
+          className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 mt-1",
+            config.color
+          )}
+        >
+          {config.avatar}
+        </div>
+      )}
+
+      <div className={cn("max-w-[75%] min-w-[120px]")}>
+        <div className="flex items-baseline gap-2 mb-0.5">
+          {!isHuman && (
+            <span className="text-xs font-semibold" style={{ color: `hsl(var(--sender-${message.sender_type}))` }}>
+              {message.sender}
+            </span>
+          )}
+          <span className="text-[10px] text-muted-foreground" title={melbourneTime(message.created_at)}>
+            {relativeTime(message.created_at)}
+          </span>
+        </div>
+
+        <div
+          className={cn(
+            "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed relative",
+            isHuman
+              ? "bg-[hsl(var(--sender-human))] text-white rounded-br-sm"
+              : "bg-secondary text-secondary-foreground rounded-bl-sm"
+          )}
+        >
+          <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere">{message.content}</p>
+
+          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+            <button
+              onClick={copyContent}
+              className="p-1 rounded hover:bg-white/10 text-current"
+              title="Copy message"
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            </button>
+          </div>
+
+          {!message.read_by_human && !isHuman && (
+            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[hsl(var(--channel-unread))]" />
+          )}
+        </div>
+
+        {hasMeta && (
+          <div className="mt-1">
+            <button
+              onClick={() => setShowMeta(!showMeta)}
+              className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+            >
+              <ChevronDown className={cn("w-3 h-3 transition-transform", showMeta && "rotate-180")} />
+              metadata
+            </button>
+            {showMeta && (
+              <div className="mt-1 relative group/meta">
+                <pre className="text-[10px] bg-muted/50 rounded p-2 text-muted-foreground overflow-x-auto max-h-32">
+                  {JSON.stringify(message.metadata, null, 2)}
+                </pre>
+                <button
+                  onClick={copyMetadata}
+                  className="absolute top-1 right-1 p-1 rounded hover:bg-muted opacity-0 group-hover/meta:opacity-100 transition-opacity"
+                  title="Copy raw JSON"
+                >
+                  <Copy className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
