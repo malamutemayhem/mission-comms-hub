@@ -1,0 +1,7 @@
+name: Claude Auto-Respond
+on: push
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Not active yet"
