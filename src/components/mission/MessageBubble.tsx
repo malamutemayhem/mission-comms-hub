@@ -25,11 +25,11 @@ function melbourneTime(dateStr: string): string {
   });
 }
 
-const senderConfig: Record<string, { align: string; color: string; avatar: string | null }> = {
-  human: { align: "right", color: "bg-[hsl(var(--sender-human))]", avatar: null },
-  claude: { align: "left", color: "bg-[hsl(var(--sender-claude))]", avatar: "C" },
-  bailey: { align: "left", color: "bg-[hsl(var(--sender-bailey))]", avatar: "B" },
-  system: { align: "center", color: "bg-[hsl(var(--sender-system))]", avatar: null },
+const senderConfig: Record<string, { align: "left" | "right" | "center"; color: string; avatar: string | null; bubbleBg: string; bubbleText: string }> = {
+  human:  { align: "left",   color: "bg-[hsl(var(--sender-human))]",  avatar: "C", bubbleBg: "bg-[hsl(var(--sender-human))]/12 border border-[hsl(var(--sender-human))]/20", bubbleText: "text-foreground" },
+  bailey: { align: "left",   color: "bg-[hsl(var(--sender-bailey))]", avatar: "B", bubbleBg: "bg-[hsl(var(--sender-bailey))]/12 border border-[hsl(var(--sender-bailey))]/20", bubbleText: "text-foreground" },
+  claude: { align: "right",  color: "bg-[hsl(var(--sender-claude))]", avatar: "C", bubbleBg: "bg-[hsl(var(--sender-claude))]/12 border border-[hsl(var(--sender-claude))]/20", bubbleText: "text-foreground" },
+  system: { align: "center", color: "bg-[hsl(var(--sender-system))]", avatar: null, bubbleBg: "", bubbleText: "" },
 };
 
 export function MessageBubble({ message }: { message: Message }) {
