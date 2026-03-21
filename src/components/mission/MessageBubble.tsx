@@ -129,7 +129,7 @@ export function MessageBubble({ message }: { message: Message }) {
             </button>
           </div>
 
-          {!message.read_by_human && !isHuman && (
+          {!message.read_by_human && !isRight && (
             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[hsl(var(--channel-unread))]" />
           )}
         </div>
