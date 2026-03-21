@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 interface Props {
   connected: boolean;
   totalMessages: number;
+  baileyAttention: number;
 }
 
-export function TopBar({ connected, totalMessages }: Props) {
+export function TopBar({ connected, totalMessages, baileyAttention }: Props) {
   return (
     <header className="h-12 flex items-center justify-between px-4 border-b border-border bg-card shrink-0">
       <div className="flex items-center gap-2">
@@ -15,6 +16,12 @@ export function TopBar({ connected, totalMessages }: Props) {
       </div>
 
       <div className="flex items-center gap-3">
+        {baileyAttention > 0 && (
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-[hsl(var(--sender-bailey))]/20 text-[hsl(var(--sender-bailey))] font-semibold">
+            Bailey attention: {baileyAttention}
+          </span>
+        )}
+
         <div className="flex items-center gap-1.5">
           <div
             className={cn(

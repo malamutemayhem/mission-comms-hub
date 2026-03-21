@@ -70,6 +70,17 @@ export async function getUnreadCounts(): Promise<Record<string, number>> {
   return counts;
 }
 
+export async function getBaileyAttentionCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from("messages")
+    .select("*", { count: "exact", head: true })
+    .eq("requires_attention", true)
+    .eq("read_by_human", false)
+    .contains("mentions", ["Bailey"]);
+  if (error) return 0;
+  return count ?? 0;
+}
+
 export function subscribeToChannel(
   channel: string,
   onInsert: (msg: Message) => void

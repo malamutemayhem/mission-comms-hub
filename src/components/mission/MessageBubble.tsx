@@ -39,6 +39,7 @@ export function MessageBubble({ message }: { message: Message }) {
   const isSystem = message.sender_type === "system";
   const isHuman = message.sender_type === "human";
   const hasMeta = message.metadata && Object.keys(message.metadata as object).length > 0;
+  const mentions: string[] = Array.isArray((message as any).mentions) ? (message as any).mentions : [];
 
   const copyContent = () => {
     navigator.clipboard.writeText(message.content);
