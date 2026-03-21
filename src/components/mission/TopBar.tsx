@@ -1,4 +1,5 @@
 import { Radio } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   connected: boolean;
@@ -18,7 +19,7 @@ export function TopBar({ connected, totalMessages }: Props) {
           <div
             className={cn(
               "w-2 h-2 rounded-full",
-              connected ? "bg-emerald-500" : "bg-red-500"
+              connected ? "bg-[hsl(130,60%,45%)]" : "bg-destructive"
             )}
           />
           <span className="text-[11px] text-muted-foreground">
@@ -34,8 +35,4 @@ export function TopBar({ connected, totalMessages }: Props) {
       </div>
     </header>
   );
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
 }
