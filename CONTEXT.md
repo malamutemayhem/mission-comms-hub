@@ -11,8 +11,11 @@ It exists to reduce copy-paste chaos and preserve context across relays.
 ## Current state
 - Mission Comms app is live in Lovable and backed by Supabase.
 - Bailey can successfully post messages directly to Mission Comms via Supabase REST.
-- Claude can read/respond through Chris relaying context, and can also use browser/app-side workarounds on its side.
-- Direct Claude ↔ Bailey MCP bridge is **not** working yet.
+- GitHub-hosted handoff is live via `CONTEXT.md` and `MESSAGES.md`.
+- GitHub Actions autonomous Claude response path is now live and confirmed working.
+- Claude can respond automatically when Bailey commits to `MESSAGES.md` with a `**Requested response:**` marker.
+- No human relay is needed for the GitHub Actions path.
+- Direct Claude ↔ Bailey MCP bridge is still not working.
 
 ## Confirmed working
 ### Mission Comms
@@ -25,6 +28,22 @@ It exists to reduce copy-paste chaos and preserve context across relays.
 - Bailey can post directly to:
   - `https://fwxcinadcjqkinkemusu.supabase.co/rest/v1/messages`
 - Mission Comms test post from Bailey succeeded.
+- Bailey can trigger Claude autonomously by committing an active-thread request to `MESSAGES.md`.
+
+### Claude via GitHub Actions
+- Workflow file: `.github/workflows/claude-respond.yml`
+- Trigger: push to `MESSAGES.md` on `main` or manual dispatch
+- Guardrails confirmed:
+  - request marker required
+  - idempotency check in Supabase via `client_message_id`
+  - proper Python JSON payload construction
+  - no commits back to `MESSAGES.md`
+  - fail hard on bad Anthropic or Supabase responses
+- Live test succeeded:
+  - Bailey committed a test request to `MESSAGES.md`
+  - GitHub Actions ran successfully in about 21 seconds
+  - Claude posted directly to Mission Comms through Supabase
+  - No copy-paste or Chris relay was required
 
 ### Mission Control
 - Mission Control finance app is real, materially built, and repo-first via Lovable + GitHub sync.
@@ -52,17 +71,26 @@ Blocker:
 - Sessions initialize then close immediately
 
 Conclusion:
-- This is parked for now
+- This path is parked for now
 - Keep tunnel + bridge infra only if useful later
 - Do not spend more time on this exact bridge unless a 2026.3.x-compatible path is found
 
 ## Current relay workflow
-1. Bailey posts a context-rich message to Mission Comms
-2. Bailey pings Chris on Telegram
+### Autonomous path
+1. Bailey updates `CONTEXT.md` if durable operating context has changed.
+2. Bailey writes a focused active-thread request into `MESSAGES.md`.
+3. The request must include `**Requested response:**`.
+4. GitHub Actions runs Claude automatically.
+5. Claude posts directly into Mission Comms via Supabase.
+6. Bailey continues from there.
+
+### Human relay fallback
+1. Bailey posts a context-rich message to Mission Comms.
+2. Bailey pings Chris on Telegram.
 3. Chris opens Claude and says: "read Mission Comms and respond to Bailey"
-4. Claude reads the current thread/context
-5. Claude responds back into Mission Comms
-6. Bailey continues from there
+4. Claude reads the current thread/context.
+5. Claude responds back into Mission Comms.
+6. Bailey continues from there.
 
 ## Standard for Mission Comms messages
 Every message intended for Claude should include:
@@ -87,14 +115,16 @@ Use context-rich messages instead.
 
 ## Recommended next steps
 ### Bailey / OpenClaw
+- Update `MESSAGES.md` after resolved tests so stale prompts do not confuse Claude
+- Tighten prompt framing so Claude does not reference old relay assumptions when the active thread is clearly autonomous
 - Add Plex as a managed OpenClaw node in a future session
-- Continue using Mission Comms + Telegram attention flow for now
 
 ### Claude
 - Use this file plus current Mission Comms thread as handoff context
 - Respond in a direct, punchy style
 - No em dashes
 - Prefer recommendations over bloated option lists
+- Trust the autonomous GitHub Actions path when the request comes through `MESSAGES.md`
 
 ## Chris preferences
 - Direct, short, critical info only unless depth is needed
@@ -114,3 +144,4 @@ Use context-rich messages instead.
 
 ## Notes
 This file is meant to let Claude enter a fresh conversation cold and understand the operating state quickly.
+The autonomous GitHub Actions loop is now real, tested, and preferred for structured Bailey → Claude handoffs.
