@@ -37,7 +37,7 @@ export function MessageBubble({ message }: { message: Message }) {
   const [showMeta, setShowMeta] = useState(false);
   const config = senderConfig[message.sender_type] ?? senderConfig.system;
   const isSystem = message.sender_type === "system";
-  const isHuman = message.sender_type === "human";
+  const isRight = config.align === "right";
   const hasMeta = message.metadata && Object.keys(message.metadata as object).length > 0;
   const mentions: string[] = Array.isArray((message as any).mentions) ? (message as any).mentions : [];
 
