@@ -1,7 +1,230 @@
 name: Claude Auto-Respond
-on: push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - MESSAGES.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-respond-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  placeholder:
+  claude-respond:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ANTHROPIC_MODEL: claude-sonnet-4-6
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
     steps:
-      - run: echo "Not active yet"
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Generate Claude response and post to Mission Comms
+        shell: bash
+        run: |
+          python <<'PY'
+          import hashlib
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          import requests
+
+
+          def fail(message, response=None):
+              print(message, file=sys.stderr)
+              if response is not None:
+                  print(f"status={response.status_code}", file=sys.stderr)
+                  print(response.text, file=sys.stderr)
+              raise SystemExit(1)
+
+
+          for key in ["SUPABASE_URL", "SUPABASE_ANON_KEY", "ANTHROPIC_API_KEY"]:
+              if not os.environ.get(key):
+                  fail(f"Missing required secret: {key}")
+
+          messages_path = Path("MESSAGES.md")
+          context_path = Path("CONTEXT.md")
+
+          if not messages_path.exists():
+              fail("MESSAGES.md not found")
+          if not context_path.exists():
+              fail("CONTEXT.md not found")
+
+          messages_text = messages_path.read_text(encoding="utf-8")
+          context_text = context_path.read_text(encoding="utf-8")
+
+          marker = "**Requested response:**"
+          latest_index = messages_text.rfind(marker)
+
+          if latest_index == -1:
+              print("No Requested response marker found. Exiting cleanly.")
+              raise SystemExit(0)
+
+          latest_request_line = messages_text[latest_index:].splitlines()[0].strip()
+          latest_block = messages_text[max(0, latest_index - 1200):].strip()
+
+          request_hash = hashlib.sha256(latest_block.encode("utf-8")).hexdigest()[:16]
+          client_message_id = f"claude-auto-{request_hash}"
+
+          supabase_base = os.environ["SUPABASE_URL"].rstrip("/")
+          session = requests.Session()
+
+          supabase_headers = {
+              "apikey": os.environ["SUPABASE_ANON_KEY"],
+              "Authorization": f"Bearer {os.environ['SUPABASE_ANON_KEY']}",
+              "Accept": "application/json",
+          }
+
+          check_response = session.get(
+              f"{supabase_base}/rest/v1/messages",
+              headers=supabase_headers,
+              params={
+                  "select": "id,client_message_id,created_at",
+                  "client_message_id": f"eq.{client_message_id}",
+                  "limit": "1",
+              },
+              timeout=30,
+          )
+
+          if check_response.status_code != 200:
+              fail("Supabase idempotency check failed", check_response)
+
+          existing = check_response.json()
+          if existing:
+              print(f"Request already processed as {client_message_id}. Exiting cleanly.")
+              raise SystemExit(0)
+
+          system_prompt = (
+              "You are Claude, replying inside Mission Comms as an on-call specialist for Chris and Bailey. "
+              "Return only the response body to post. "
+              "Be direct, useful, and concise. "
+              "No em dashes. "
+              "Answer the latest requested response first. "
+              "If something is uncertain, say exactly what is missing."
+          )
+
+          user_prompt = (
+              "Mission Comms durable context:\n"
+              "<CONTEXT>\n"
+              f"{context_text}\n"
+              "</CONTEXT>\n\n"
+              "Mission Comms active thread:\n"
+              "<MESSAGES>\n"
+              f"{messages_text}\n"
+              "</MESSAGES>\n\n"
+              f"Latest request marker:\n{latest_request_line}\n\n"
+              "Respond to the latest requested response only."
+          )
+
+          anthropic_payload = {
+              "model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+              "max_tokens": 1200,
+              "system": system_prompt,
+              "messages": [
+                  {
+                      "role": "user",
+                      "content": user_prompt,
+                  }
+              ],
+          }
+
+          anthropic_response = session.post(
+              "https://api.anthropic.com/v1/messages",
+              headers={
+                  "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                  "anthropic-version": "2023-06-01",
+                  "content-type": "application/json",
+              },
+              data=json.dumps(anthropic_payload),
+              timeout=90,
+          )
+
+          if anthropic_response.status_code != 200:
+              fail("Anthropic API call failed", anthropic_response)
+
+          try:
+              anthropic_data = anthropic_response.json()
+          except Exception:
+              fail("Anthropic returned non-JSON response", anthropic_response)
+
+          content_blocks = anthropic_data.get("content")
+          if not isinstance(content_blocks, list):
+              fail("Anthropic response missing content array", anthropic_response)
+
+          response_text = "\n".join(
+              block.get("text", "")
+              for block in content_blocks
+              if isinstance(block, dict) and block.get("type") == "text"
+          ).strip()
+
+          if not response_text:
+              fail("Anthropic response did not contain text output", anthropic_response)
+
+          response_text = response_text.replace("\u2014", "-").replace("—", "-")
+
+          supabase_payload = [
+              {
+                  "sender": "Claude",
+                  "sender_type": "claude",
+                  "content": response_text,
+                  "channel": "general",
+                  "mentions": ["bailey"],
+                  "requires_attention": True,
+                  "client_message_id": client_message_id,
+                  "metadata": {
+                      "source": "github-actions-claude-respond",
+                      "request_marker": latest_request_line,
+                      "request_hash": request_hash,
+                      "github_repository": os.environ.get("GITHUB_REPOSITORY"),
+                      "github_sha": os.environ.get("GITHUB_SHA"),
+                      "github_run_id": os.environ.get("GITHUB_RUN_ID"),
+                  },
+              }
+          ]
+
+          insert_response = session.post(
+              f"{supabase_base}/rest/v1/messages",
+              headers={
+                  **supabase_headers,
+                  "Content-Type": "application/json",
+                  "Prefer": "return=representation",
+              },
+              data=json.dumps(supabase_payload),
+              timeout=30,
+          )
+
+          if insert_response.status_code not in (200, 201):
+              fail("Supabase insert failed", insert_response)
+
+          try:
+              inserted = insert_response.json()
+          except Exception:
+              fail("Supabase insert returned non-JSON response", insert_response)
+
+          if not isinstance(inserted, list) or not inserted:
+              fail("Supabase insert did not return inserted row", insert_response)
+
+          inserted_id = inserted[0].get("id", "<unknown>")
+          print(f"Posted Claude response to Mission Comms. id={inserted_id}")
+          PY
