@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
-import { Send } from "lucide-react";
+import { Send, AtSign } from "lucide-react";
 import { sendMessage, type Channel } from "@/lib/messages";
+import { cn } from "@/lib/utils";
 
 interface Props {
   channel: Channel;
@@ -9,11 +10,23 @@ interface Props {
 export function MessageComposer({ channel }: Props) {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [mentionBailey, setMentionBailey] = useState(false);
+  const [mentionClaude, setMentionClaude] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSend = useCallback(async () => {
+  const buildMentions = () => {
+    const m: string[] = [];
+    if (mentionBailey) m.push("Bailey");
+    if (mentionClaude) m.push("Claude");
+    return m;
+  };
+
+  const handleSend = useCallback(async (forcePing = false) => {
     const trimmed = content.trim();
     if (!trimmed || sending) return;
+
+    const mentions = forcePing ? ["Bailey"] : buildMentions();
+    const requires_attention = forcePing || mentionBailey;
 
     setSending(true);
     try {
@@ -22,8 +35,12 @@ export function MessageComposer({ channel }: Props) {
         sender_type: "human",
         content: trimmed,
         channel,
+        mentions,
+        requires_attention,
       });
       setContent("");
+      setMentionBailey(false);
+      setMentionClaude(false);
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
@@ -32,7 +49,7 @@ export function MessageComposer({ channel }: Props) {
     } finally {
       setSending(false);
     }
-  }, [content, channel, sending]);
+  }, [content, channel, sending, mentionBailey, mentionClaude]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -51,6 +68,36 @@ export function MessageComposer({ channel }: Props) {
 
   return (
     <div className="border-t border-border bg-card px-4 py-3">
+      {/* Mention toggles */}
+      <div className="flex gap-1.5 mb-2">
+        <button
+          type="button"
+          onClick={() => setMentionBailey(!mentionBailey)}
+          className={cn(
+            "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors active:scale-[0.97]",
+            mentionBailey
+              ? "bg-[hsl(var(--sender-bailey))] text-white"
+              : "bg-secondary text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <AtSign className="w-3 h-3" />
+          Bailey
+        </button>
+        <button
+          type="button"
+          onClick={() => setMentionClaude(!mentionClaude)}
+          className={cn(
+            "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors active:scale-[0.97]",
+            mentionClaude
+              ? "bg-[hsl(var(--sender-claude))] text-white"
+              : "bg-secondary text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <AtSign className="w-3 h-3" />
+          Claude
+        </button>
+      </div>
+
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -63,7 +110,15 @@ export function MessageComposer({ channel }: Props) {
           disabled={sending}
         />
         <button
-          onClick={handleSend}
+          onClick={() => handleSend(true)}
+          disabled={!content.trim() || sending}
+          className="px-3 py-2.5 rounded-lg bg-[hsl(var(--sender-bailey))] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 active:scale-95"
+          title="Send with @Bailey + requires attention"
+        >
+          Ping Bailey
+        </button>
+        <button
+          onClick={() => handleSend()}
           disabled={!content.trim() || sending}
           className="p-2.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 active:scale-95"
         >
@@ -71,7 +126,7 @@ export function MessageComposer({ channel }: Props) {
         </button>
       </div>
       <p className="text-[10px] text-muted-foreground mt-1.5">
-        Enter to send · Shift+Enter for newline · Sending as Chris
+        Enter to send · Shift+Enter for newline · @Bailey to ping · Sending as Chris
       </p>
     </div>
   );

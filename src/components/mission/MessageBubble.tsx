@@ -39,6 +39,7 @@ export function MessageBubble({ message }: { message: Message }) {
   const isSystem = message.sender_type === "system";
   const isHuman = message.sender_type === "human";
   const hasMeta = message.metadata && Object.keys(message.metadata as object).length > 0;
+  const mentions: string[] = Array.isArray((message as any).mentions) ? (message as any).mentions : [];
 
   const copyContent = () => {
     navigator.clipboard.writeText(message.content);
@@ -97,9 +98,27 @@ export function MessageBubble({ message }: { message: Message }) {
             "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed relative",
             isHuman
               ? "bg-[hsl(var(--sender-human))] text-white rounded-br-sm"
-              : "bg-secondary text-secondary-foreground rounded-bl-sm"
+              : "bg-secondary text-secondary-foreground rounded-bl-sm",
+            message.requires_attention && "ring-1 ring-[hsl(var(--sender-bailey))]/50"
           )}
         >
+          {/* Mention badges */}
+          {mentions.length > 0 && (
+            <div className="flex gap-1 mb-1.5">
+              {mentions.map((m) => (
+                <span
+                  key={m}
+                  className={cn(
+                    "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                    m === "Bailey" ? "bg-[hsl(var(--sender-bailey))]/20 text-[hsl(var(--sender-bailey))]" : "bg-[hsl(var(--sender-claude))]/20 text-[hsl(var(--sender-claude))]"
+                  )}
+                >
+                  @{m}
+                </span>
+              ))}
+            </div>
+          )}
+
           <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere">{message.content}</p>
 
           <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">

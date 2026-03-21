@@ -21,9 +21,11 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          mentions: string[]
           metadata: Json
           pinned: boolean
           read_by_human: boolean
+          requires_attention: boolean
           sender: string
           sender_type: string
           updated_at: string
@@ -34,9 +36,11 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          mentions?: string[]
           metadata?: Json
           pinned?: boolean
           read_by_human?: boolean
+          requires_attention?: boolean
           sender: string
           sender_type: string
           updated_at?: string
@@ -47,9 +51,11 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          mentions?: string[]
           metadata?: Json
           pinned?: boolean
           read_by_human?: boolean
+          requires_attention?: boolean
           sender?: string
           sender_type?: string
           updated_at?: string

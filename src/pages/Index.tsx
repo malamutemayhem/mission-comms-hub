@@ -9,7 +9,7 @@
  *   Content-Type: application/json
  *   Prefer: return=minimal
  * Body:
- *   {"sender":"Bailey","sender_type":"bailey","content":"your message","channel":"general"}
+ *   {"sender":"Bailey","sender_type":"bailey","content":"your message","channel":"general","mentions":["Bailey"],"requires_attention":true}
  *
  * Chris uses this UI.
  * Claude can use the same table via app/API later.
@@ -21,6 +21,7 @@ import {
   subscribeToChannel,
   unsubscribe,
   getUnreadCounts,
+  getBaileyAttentionCount,
   type Message,
   type Channel,
   CHANNELS,
@@ -28,6 +29,7 @@ import {
 import { TopBar } from "@/components/mission/TopBar";
 import { ChannelTabs } from "@/components/mission/ChannelTabs";
 import { SenderFilter } from "@/components/mission/SenderFilter";
+import { AttentionFilter, type AttentionFilterValue } from "@/components/mission/AttentionFilter";
 import { MessageBubble } from "@/components/mission/MessageBubble";
 import { MessageComposer } from "@/components/mission/MessageComposer";
 import { MessageSquare } from "lucide-react";
@@ -36,7 +38,9 @@ export default function MissionComms() {
   const [channel, setChannel] = useState<Channel>("general");
   const [messages, setMessages] = useState<Message[]>([]);
   const [senderFilter, setSenderFilter] = useState("all");
+  const [attentionFilter, setAttentionFilter] = useState<AttentionFilterValue>("all");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [baileyAttention, setBaileyAttention] = useState(0);
   const [connected, setConnected] = useState(false);
   const [hasNew, setHasNew] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -80,7 +84,6 @@ export default function MissionComms() {
       }
     });
 
-    // Check connection status
     const timer = setTimeout(() => setConnected(true), 1000);
 
     return () => {
@@ -89,22 +92,42 @@ export default function MissionComms() {
     };
   }, [channel, scrollToBottom]);
 
-  // Unread counts
+  // Unread counts + bailey attention
   useEffect(() => {
-    getUnreadCounts().then(setUnreadCounts);
-    const interval = setInterval(() => getUnreadCounts().then(setUnreadCounts), 15000);
+    const refresh = () => {
+      getUnreadCounts().then(setUnreadCounts);
+      getBaileyAttentionCount().then(setBaileyAttention);
+    };
+    refresh();
+    const interval = setInterval(refresh, 15000);
     return () => clearInterval(interval);
   }, [messages]);
 
-  const filtered = senderFilter === "all"
-    ? messages
-    : messages.filter((m) => m.sender_type === senderFilter);
+  // Apply filters
+  let filtered = messages;
+  if (senderFilter !== "all") {
+    filtered = filtered.filter((m) => m.sender_type === senderFilter);
+  }
+  if (attentionFilter === "attention") {
+    filtered = filtered.filter((m) => (m as any).requires_attention === true);
+  } else if (attentionFilter === "mentions-bailey") {
+    filtered = filtered.filter((m) => {
+      const mentions = (m as any).mentions;
+      return Array.isArray(mentions) && mentions.includes("Bailey");
+    });
+  } else if (attentionFilter === "mentions-claude") {
+    filtered = filtered.filter((m) => {
+      const mentions = (m as any).mentions;
+      return Array.isArray(mentions) && mentions.includes("Claude");
+    });
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <TopBar connected={connected} totalMessages={messages.length} />
+      <TopBar connected={connected} totalMessages={messages.length} baileyAttention={baileyAttention} />
       <ChannelTabs active={channel} onChange={setChannel} unreadCounts={unreadCounts} />
       <SenderFilter active={senderFilter} onChange={setSenderFilter} />
+      <AttentionFilter active={attentionFilter} onChange={setAttentionFilter} />
 
       {/* Message Feed */}
       <div
@@ -120,13 +143,13 @@ export default function MissionComms() {
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
             <MessageSquare className="w-10 h-10 opacity-30" />
             <p className="text-sm">No messages in #{channel} yet</p>
-            <p className="text-xs opacity-60">Send the first message or wait for incoming comms</p>
+            <p className="text-xs opacity-60">Send a message, or use <strong>@Bailey</strong> / <strong>Ping Bailey</strong> when you want Bailey to actively respond.</p>
+            <p className="text-xs opacity-60">Messages can also be posted normally without mentions.</p>
           </div>
         ) : (
           filtered.map((msg) => <MessageBubble key={msg.id} message={msg} />)
         )}
 
-        {/* New message indicator */}
         {hasNew && (
           <button
             onClick={() => { scrollToBottom(); setHasNew(false); }}
