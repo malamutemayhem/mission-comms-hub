@@ -25,11 +25,11 @@ function melbourneTime(dateStr: string): string {
   });
 }
 
-const senderConfig: Record<string, { align: string; color: string; avatar: string | null }> = {
-  human: { align: "right", color: "bg-[hsl(var(--sender-human))]", avatar: null },
-  claude: { align: "left", color: "bg-[hsl(var(--sender-claude))]", avatar: "C" },
-  bailey: { align: "left", color: "bg-[hsl(var(--sender-bailey))]", avatar: "B" },
-  system: { align: "center", color: "bg-[hsl(var(--sender-system))]", avatar: null },
+const senderConfig: Record<string, { align: "left" | "right" | "center"; color: string; avatar: string | null; bubbleBg: string; bubbleText: string }> = {
+  human:  { align: "left",   color: "bg-[hsl(var(--sender-human))]",  avatar: "C", bubbleBg: "bg-[hsl(var(--sender-human))]/12 border border-[hsl(var(--sender-human))]/20", bubbleText: "text-foreground" },
+  bailey: { align: "left",   color: "bg-[hsl(var(--sender-bailey))]", avatar: "B", bubbleBg: "bg-[hsl(var(--sender-bailey))]/12 border border-[hsl(var(--sender-bailey))]/20", bubbleText: "text-foreground" },
+  claude: { align: "right",  color: "bg-[hsl(var(--sender-claude))]", avatar: "C", bubbleBg: "bg-[hsl(var(--sender-claude))]/12 border border-[hsl(var(--sender-claude))]/20", bubbleText: "text-foreground" },
+  system: { align: "center", color: "bg-[hsl(var(--sender-system))]", avatar: null, bubbleBg: "", bubbleText: "" },
 };
 
 export function MessageBubble({ message }: { message: Message }) {
@@ -37,7 +37,7 @@ export function MessageBubble({ message }: { message: Message }) {
   const [showMeta, setShowMeta] = useState(false);
   const config = senderConfig[message.sender_type] ?? senderConfig.system;
   const isSystem = message.sender_type === "system";
-  const isHuman = message.sender_type === "human";
+  const isRight = config.align === "right";
   const hasMeta = message.metadata && Object.keys(message.metadata as object).length > 0;
   const mentions: string[] = Array.isArray((message as any).mentions) ? (message as any).mentions : [];
 
@@ -66,14 +66,14 @@ export function MessageBubble({ message }: { message: Message }) {
   return (
     <div
       className={cn(
-        "flex gap-2 my-1.5 group",
-        isHuman ? "justify-end" : "justify-start"
+        "flex gap-2.5 my-2 group",
+        isRight ? "justify-end" : "justify-start"
       )}
     >
-      {!isHuman && (
+      {!isRight && (
         <div
           className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 mt-1",
+            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-5",
             config.color
           )}
         >
@@ -82,12 +82,10 @@ export function MessageBubble({ message }: { message: Message }) {
       )}
 
       <div className={cn("max-w-[75%] min-w-[120px]")}>
-        <div className="flex items-baseline gap-2 mb-0.5">
-          {!isHuman && (
-            <span className="text-xs font-semibold" style={{ color: `hsl(var(--sender-${message.sender_type}))` }}>
-              {message.sender}
-            </span>
-          )}
+        <div className={cn("flex items-baseline gap-2 mb-0.5", isRight && "justify-end")}>
+          <span className="text-xs font-bold" style={{ color: `hsl(var(--sender-${message.sender_type}))` }}>
+            {message.sender}
+          </span>
           <span className="text-[10px] text-muted-foreground" title={melbourneTime(message.created_at)}>
             {relativeTime(message.created_at)}
           </span>
@@ -95,10 +93,10 @@ export function MessageBubble({ message }: { message: Message }) {
 
         <div
           className={cn(
-            "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed relative",
-            isHuman
-              ? "bg-[hsl(var(--sender-human))] text-white rounded-br-sm"
-              : "bg-secondary text-secondary-foreground rounded-bl-sm",
+            "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed relative",
+            config.bubbleBg,
+            config.bubbleText,
+            isRight ? "rounded-br-sm" : "rounded-bl-sm",
             message.requires_attention && "ring-1 ring-[hsl(var(--sender-bailey))]/50"
           )}
         >
@@ -131,7 +129,7 @@ export function MessageBubble({ message }: { message: Message }) {
             </button>
           </div>
 
-          {!message.read_by_human && !isHuman && (
+          {!message.read_by_human && !isRight && (
             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[hsl(var(--channel-unread))]" />
           )}
         </div>
@@ -162,6 +160,17 @@ export function MessageBubble({ message }: { message: Message }) {
           </div>
         )}
       </div>
+
+      {isRight && (
+        <div
+          className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-5",
+            config.color
+          )}
+        >
+          {config.avatar}
+        </div>
+      )}
     </div>
   );
 }
