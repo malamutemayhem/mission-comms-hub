@@ -66,7 +66,8 @@ export function MessageComposer({ channel }: Props) {
         content: full,
         channel,
         mentions: ["Claude"],
-        requires_attention: false,
+        requires_attention: true,
+        metadata: { target_agent: "claude" },
       });
       setContent("");
       setMentionBailey(false);
