@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Send, AtSign } from "lucide-react";
+import { Send, AtSign, Sparkles } from "lucide-react";
 import { sendMessage, type Channel } from "@/lib/messages";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +50,34 @@ export function MessageComposer({ channel }: Props) {
       setSending(false);
     }
   }, [content, channel, sending, mentionBailey, mentionClaude]);
+
+  const handleSummonClaude = useCallback(async () => {
+    if (sending) return;
+    const body = content.trim();
+    const full = body
+      ? `${body}\n\n**Requested response:** Chime in.`
+      : `**Requested response:** Chime in.`;
+
+    setSending(true);
+    try {
+      await sendMessage({
+        sender: "Chris",
+        sender_type: "human",
+        content: full,
+        channel,
+        mentions: ["Claude"],
+        requires_attention: false,
+      });
+      setContent("");
+      setMentionBailey(false);
+      setMentionClaude(false);
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+    } catch (err) {
+      console.error("Failed to summon Claude:", err);
+    } finally {
+      setSending(false);
+    }
+  }, [content, channel, sending]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -116,6 +144,15 @@ export function MessageComposer({ channel }: Props) {
           title="Send with @Bailey + requires attention"
         >
           Ping Bailey
+        </button>
+        <button
+          onClick={() => handleSummonClaude()}
+          disabled={sending}
+          className="flex items-center gap-1 px-3 py-2.5 rounded-lg bg-[hsl(var(--sender-claude))] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0 active:scale-95"
+          title="Summon Claude to respond"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Summon Claude
         </button>
         <button
           onClick={() => handleSend()}
