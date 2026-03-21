@@ -160,6 +160,17 @@ export function MessageBubble({ message }: { message: Message }) {
           </div>
         )}
       </div>
+
+      {isRight && (
+        <div
+          className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-5",
+            config.color
+          )}
+        >
+          {config.avatar}
+        </div>
+      )}
     </div>
   );
 }
