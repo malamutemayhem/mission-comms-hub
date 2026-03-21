@@ -12,9 +12,11 @@ It exists to reduce copy-paste chaos and preserve context across relays.
 - Mission Comms app is live in Lovable and backed by Supabase.
 - Bailey can successfully post messages directly to Mission Comms via Supabase REST.
 - GitHub-hosted handoff is live via `CONTEXT.md` and `MESSAGES.md`.
-- GitHub Actions autonomous Claude response path is now live and confirmed working.
+- GitHub Actions autonomous Claude response path is live and confirmed working.
 - Claude can respond automatically when Bailey commits to `MESSAGES.md` with a `**Requested response:**` marker.
-- No human relay is needed for the GitHub Actions path.
+- No human relay is needed for the `MESSAGES.md` GitHub Actions path.
+- `GITHUB_DISPATCH_TOKEN` has been added to GitHub repository secrets for the next dispatch-based build step.
+- The active build item is the UI-triggered webhook path so Mission Comms app messages can automatically summon Claude when appropriate.
 - Direct Claude ↔ Bailey MCP bridge is still not working.
 
 ## Confirmed working
@@ -39,11 +41,17 @@ It exists to reduce copy-paste chaos and preserve context across relays.
   - proper Python JSON payload construction
   - no commits back to `MESSAGES.md`
   - fail hard on bad Anthropic or Supabase responses
-- Live test succeeded:
-  - Bailey committed a test request to `MESSAGES.md`
-  - GitHub Actions ran successfully in about 21 seconds
+- Live tests succeeded:
+  - Bailey committed structured requests to `MESSAGES.md`
+  - GitHub Actions ran successfully
   - Claude posted directly to Mission Comms through Supabase
   - No copy-paste or Chris relay was required
+
+### Current format work
+- `MESSAGES.md` format v2 has been proposed with:
+  - `message_id`
+  - `status`
+- This is intended to reduce stale prompt confusion and improve handoff clarity.
 
 ### Mission Control
 - Mission Control finance app is real, materially built, and repo-first via Lovable + GitHub sync.
@@ -52,6 +60,22 @@ It exists to reduce copy-paste chaos and preserve context across relays.
   1. removed tracked `.env`, added `.env.example`
   2. standardized on npm, removed Bun lockfiles
   3. cleaned README project links
+
+## Active build item
+### UI-triggered Claude webhook path
+Current limitation:
+- Messages typed directly into the Mission Comms UI do not automatically trigger Claude.
+- Only `MESSAGES.md` commits currently trigger the autonomous Claude loop.
+
+Target:
+- New human UI messages should be able to trigger Claude automatically when appropriate.
+
+Recommended path:
+1. Supabase webhook or Edge Function receives new human message events
+2. Filter for trigger-worthy messages only
+3. Dispatch GitHub Actions using `GITHUB_DISPATCH_TOKEN`
+4. GitHub workflow fetches context, calls Anthropic, and posts reply back to Supabase
+5. Idempotency and loop prevention remain strict
 
 ## Not working yet
 ### Claude ↔ Bailey direct bridge
@@ -76,13 +100,19 @@ Conclusion:
 - Do not spend more time on this exact bridge unless a 2026.3.x-compatible path is found
 
 ## Current relay workflow
-### Autonomous path
+### Autonomous structured path
 1. Bailey updates `CONTEXT.md` if durable operating context has changed.
 2. Bailey writes a focused active-thread request into `MESSAGES.md`.
 3. The request must include `**Requested response:**`.
 4. GitHub Actions runs Claude automatically.
 5. Claude posts directly into Mission Comms via Supabase.
 6. Bailey continues from there.
+
+### Upcoming conversational path
+1. Chris or Bailey posts into Mission Comms UI.
+2. Supabase webhook or Edge Function evaluates the new human message.
+3. If the message should summon Claude, GitHub Actions is dispatched automatically.
+4. Claude replies into Mission Comms without requiring a `MESSAGES.md` commit.
 
 ### Human relay fallback
 1. Bailey posts a context-rich message to Mission Comms.
@@ -115,8 +145,9 @@ Use context-rich messages instead.
 
 ## Recommended next steps
 ### Bailey / OpenClaw
+- Build the webhook-driven Claude responder for UI-originated human messages
+- Tighten prompt framing so Claude does not reference stale relay assumptions
 - Update `MESSAGES.md` after resolved tests so stale prompts do not confuse Claude
-- Tighten prompt framing so Claude does not reference old relay assumptions when the active thread is clearly autonomous
 - Add Plex as a managed OpenClaw node in a future session
 
 ### Claude
@@ -125,6 +156,7 @@ Use context-rich messages instead.
 - No em dashes
 - Prefer recommendations over bloated option lists
 - Trust the autonomous GitHub Actions path when the request comes through `MESSAGES.md`
+- Once the webhook path is built, treat qualifying UI-originated human messages as valid autonomous summons
 
 ## Chris preferences
 - Direct, short, critical info only unless depth is needed
@@ -144,4 +176,5 @@ Use context-rich messages instead.
 
 ## Notes
 This file is meant to let Claude enter a fresh conversation cold and understand the operating state quickly.
-The autonomous GitHub Actions loop is now real, tested, and preferred for structured Bailey → Claude handoffs.
+The autonomous `MESSAGES.md` GitHub Actions loop is real, tested, and working.
+The next infrastructure step is the UI-triggered webhook path so Mission Comms feels conversational rather than commit-driven.
