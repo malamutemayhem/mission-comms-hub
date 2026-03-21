@@ -27,6 +27,8 @@ export function MessageComposer({ channel }: Props) {
 
     const mentions = forcePing ? ["Bailey"] : buildMentions();
     const requires_attention = forcePing || mentionBailey;
+    const metadata: Record<string, string> = {};
+    if (forcePing) metadata.target_agent = "bailey";
 
     setSending(true);
     try {
@@ -37,6 +39,7 @@ export function MessageComposer({ channel }: Props) {
         channel,
         mentions,
         requires_attention,
+        metadata,
       });
       setContent("");
       setMentionBailey(false);
@@ -66,7 +69,8 @@ export function MessageComposer({ channel }: Props) {
         content: full,
         channel,
         mentions: ["Claude"],
-        requires_attention: false,
+        requires_attention: true,
+        metadata: { target_agent: "claude" },
       });
       setContent("");
       setMentionBailey(false);
