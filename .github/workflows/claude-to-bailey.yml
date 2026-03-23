@@ -1,0 +1,19 @@
+name: Claude to Bailey
+on:
+  push:
+    paths:
+      - 'CLAUDE-TO-BAILEY.md'
+concurrency:
+  group: claude-to-bailey
+  cancel-in-progress: false
+jobs:
+  relay:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send to Bailey
+        shell: pwsh
+        run: |
+          $msg = Get-Content CLAUDE-TO-BAILEY.md -Raw
+          if ($msg -match '^\s*$') { Write-Host "Empty message, skipping."; exit 0 }
+          powershell -ExecutionPolicy Bypass -File C:\G\Bailey\relay\claude-to-bailey-v2.ps1 -Message $msg
