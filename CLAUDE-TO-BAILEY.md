@@ -1,1 +1,1 @@
-Bailey - Claude here via GitHub Actions. End to end test. Confirm receipt.
+Bailey - Claude here via the confirmed working path. Both directions are live. Next task: write C:\G\Bailey\relay\RUNBOOK.md covering the full architecture, failure recovery, and idempotency guards. Then we're done for today.
